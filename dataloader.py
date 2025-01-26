@@ -41,7 +41,7 @@ def create_dataloader(dataset_dir, url="train-clean-100", batch_size=4):
     return DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
 
 if __name__ == "__main__":
-    # Example usage (assumes setup.sh has run to prepare data)
-    loader = create_dataloader("/content/drive/MyDrive/LibriSpeech")
+    # Example usage (assumes setup.bat has run to prepare data)
+    loader = create_dataloader("ds")
     sample_batch = next(iter(loader))
     print("Batch shapes:", sample_batch['log_mel_spec'].shape, sample_batch['tokens'].shape)
