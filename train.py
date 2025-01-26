@@ -29,17 +29,15 @@ def train_speech_to_text(model, dataloader, epochs=5):
     for epoch in range(epochs):
         total_loss = 0.0
         for batch in dataloader:
-            # Example batch: {'log_mel_spec': spec, 'tokens': tokens}
-            spectrogram = batch['log_mel_spec']        # (batch_size, seq_len, feature_dim)
+            spectrogram = batch['log_mel_spec']        # (batch_size, max_len, n_mels)
             tgt_tokens = batch['tokens']               # (batch_size, tgt_seq_len)
+            
+            decoder_out, ctc_out = model(spectrogram, tgt_tokens)
+            
             input_lengths = torch.full((spectrogram.size(0),), spectrogram.size(1), dtype=torch.long)
             target_lengths = torch.full((tgt_tokens.size(0),), tgt_tokens.size(1), dtype=torch.long)
 
-            decoder_out, ctc_out = model(spectrogram, tgt_tokens)
-
-            # Typical usage: cross-entropy if we want teacher-forcing decoding,
-            # but here we'll show CTC:
-            ctc_out_perm = ctc_out.permute(1, 0, 2) # (seq_len, batch_size, vocab_size)
+            ctc_out_perm = ctc_out.permute(1, 0, 2)
             loss = ctc_loss_fn(ctc_out_perm, tgt_tokens, input_lengths, target_lengths)
 
             optimizer.zero_grad()

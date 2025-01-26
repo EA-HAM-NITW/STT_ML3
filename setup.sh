@@ -1,5 +1,5 @@
 pip install --upgrade pip
-pip install --upgrade tensorflow tensorflow_io  tensorflow-io speechbrain torchaudio librosa soundfile 
+pip install --upgrade tensorflow tensorflow_io  tensorflow-io speechbrain torchaudio librosa soundfile matplotlib
 
 
 mkdir ds

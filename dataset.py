@@ -8,11 +8,13 @@ import random
 import string
 import os
 
-from google.colab import drive
-drive.mount('/content/drive')
+# Comment out google.colab references to avoid error in a local environment
+# from google.colab import drive
+# drive.mount('/content/drive')
 
-dataset_dir = '/content/drive/MyDrive/LibriSpeech'
-os.makedirs(dataset_dir, exist_ok=True)
+# Remove or comment out lines setting dataset_dir to Colab drive path
+# dataset_dir = '/content/drive/MyDrive/LibriSpeech'
+# os.makedirs(dataset_dir, exist_ok=True)
 
 torch.manual_seed(42)
 random.seed(42)
@@ -41,35 +43,27 @@ def preprocess_audio(waveform, sample_rate):
     # Pad or truncate to MAX_AUDIO_LENGTH
     if waveform.shape[1] > MAX_AUDIO_LENGTH:
         waveform = waveform[:, :MAX_AUDIO_LENGTH]
-    elif waveform.shape[1] < MAX_AUDIO_LENGTH:
-        padding = torch.zeros(1, MAX_AUDIO_LENGTH - waveform.shape[1])
-        waveform = torch.cat([waveform, padding], dim=1)
+    else:
+        pad_length = MAX_AUDIO_LENGTH - waveform.shape[1]
+        waveform = torch.nn.functional.pad(waveform, (0, pad_length))
     
     return waveform
 
 def add_noise(waveform, noise_factor=0.005):
-    noise = torch.randn_like(waveform) * noise_factor
+    noise = torch.randn_like(waveform[0]) * noise_factor  # Access first dimension of waveform
     return waveform + noise
 
 def change_speed(waveform, speed_factor):
-    return torchaudio.functional.speed(waveform, speed_factor)
+    return torchaudio.functional.speed(waveform, SAMPLE_RATE, speed_factor)
 
 def shift_pitch(waveform, n_steps):
     return torchaudio.functional.pitch_shift(waveform, SAMPLE_RATE, n_steps)
 
 def augment_audio(waveform):
-    augmentations = [add_noise, change_speed, shift_pitch]
-    num_augmentations = random.randint(1, len(augmentations))
-    
-    for _ in range(num_augmentations):
-        aug_func = random.choice(augmentations)
-        if aug_func == add_noise:
-            waveform = aug_func(waveform, noise_factor=random.uniform(0.001, 0.01))
-        elif aug_func == change_speed:
-            waveform = aug_func(waveform, speed_factor=random.uniform(0.9, 1.1))
-        elif aug_func == shift_pitch:
-            waveform = aug_func(waveform, n_steps=random.randint(-2, 2))
-    
+    aug_funcs = [add_noise]  # Can add more augmentation functions later
+    aug_func = random.choice(aug_funcs)
+    if aug_func == add_noise:
+        waveform = aug_func(waveform, noise_factor=random.uniform(0.001, 0.01))
     return waveform
 
 def extract_mfcc(waveform):
