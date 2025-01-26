@@ -17,17 +17,19 @@ class SpeechToTextModel(nn.Module):
         ctc_out = self.ctc_projection(encoder_out)
         return decoder_out, ctc_out
 
-def train_speech_to_text(model, dataloader, epochs=5, device='cpu'):
+def train_speech_to_text(model, dataloader, epochs=10, device='cuda'):
     ctc_loss_fn = nn.CTCLoss(blank=0, zero_infinity=True)
     optimizer = optim.AdamW(model.parameters(), lr=1e-4)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=2)
 
     model.train()
     for epoch in range(epochs):
         total_loss = 0.0
-        for batch in dataloader:
-            spectrogram = batch['log_mel_spec'].to(device)  # Move to device
-            tgt_tokens = batch['tokens'].to(device)         # Move to device
+        for i, batch in enumerate(dataloader):
+            spectrogram = batch['log_mel_spec'].to(device)
+            tgt_tokens = batch['tokens'].to(device)
             
+            optimizer.zero_grad()
             decoder_out, ctc_out = model(spectrogram, tgt_tokens)
             
             input_lengths = torch.full((spectrogram.size(0),), spectrogram.size(1), dtype=torch.long).to(device)
@@ -36,12 +38,24 @@ def train_speech_to_text(model, dataloader, epochs=5, device='cpu'):
             ctc_out_perm = ctc_out.permute(1, 0, 2)
             loss = ctc_loss_fn(ctc_out_perm, tgt_tokens, input_lengths, target_lengths)
 
-            optimizer.zero_grad()
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)  # Gradient clipping
             optimizer.step()
+            
             total_loss += loss.item()
+            
+            if i % 100 == 0:
+                print(f"Epoch {epoch+1}/{epochs}, Batch {i}, Loss: {loss.item():.4f}")
+        
+        avg_loss = total_loss / len(dataloader)
+        scheduler.step(avg_loss)
+        print(f"Epoch {epoch+1}/{epochs}, Average Loss: {avg_loss:.4f}")
 
-        print(f"Epoch {epoch+1}/{epochs}, Loss: {total_loss/len(dataloader)}")
-
-# Example usage:
-# (Create a DataLoader from dataset.py outputs, then run train_speech_to_text(model, dataloader))
+def create_dataloader(dataset_dir, url="train-clean-100", batch_size=32):
+    dataset = MyLibriSpeechDataset(dataset_dir, url=url)
+    return DataLoader(dataset, 
+                     batch_size=batch_size, 
+                     shuffle=True, 
+                     collate_fn=collate_fn,
+                     num_workers=2,  # Parallel data loading
+                     pin_memory=True)  # Faster data transfer to GPU

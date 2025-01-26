@@ -3,7 +3,7 @@ from train import SpeechToTextModel, train_speech_to_text
 from dataloader import create_dataloader
 
 # Create DataLoader
-dataloader = create_dataloader("ds", url="train-clean-100", batch_size=4)
+dataloader = create_dataloader("/content/ds", url="train-clean-100", batch_size=4)
 
 # Create model
 vocab_size = 128  # adjust as needed
